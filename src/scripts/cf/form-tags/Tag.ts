@@ -174,25 +174,8 @@ namespace cf {
 		}
 
 		public static isTagValid(element: HTMLInputElement | HTMLSelectElement | HTMLButtonElement | HTMLOptionElement):boolean{
-			
-			// ignore buttons, we submit the form automatially
-			if(element.getAttribute("type") == "button")
-				return false;
-
-			const innerText: string = Helpers.getInnerTextOfElement(element);
-			if(element.tagName.toLowerCase() == "option" && (innerText == "" || innerText == " ")){
-				return false;
-			}
-
+			console.log("testing123");
 			return true;
-		
-			/*
-			if(element.tagName.toLowerCase() == "select" || element.tagName.toLowerCase() == "option")
-				return true
-			else{
-				return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-			}
-			*/
 		}
 
 		public static createTag(element: HTMLInputElement | HTMLSelectElement | HTMLButtonElement | HTMLOptionElement): ITag{
