@@ -24,8 +24,5 @@
   "license": "MIT",
   "ignore": [
     "build"
-  ],
-  "dependencies": {
-    "conversational-form": "^0.9.1"
-  }
+  ]
 }
