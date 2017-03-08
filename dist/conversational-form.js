@@ -20,7 +20,7 @@ var cf;
             this.preventAutoAppend = false;
             this.preventAutoStart = false;
             window.ConversationalForm = this;
-            console.log('Conversational Form > version:', this.version);
+            // console.log('Conversational Form > version:', this.version);
             window.ConversationalForm[this.createId] = this;
             // set a general step validation callback
             if (options.flowStepCallback)
@@ -183,7 +183,7 @@ var cf;
                 if (tag.type == "radio" || tag.type == "checkbox") {
                     if (!groups[tag.name])
                         groups[tag.name] = [];
-                    console.log(this.constructor.name, 'tag.name]:', tag.name);
+                    // console.log((<any>this.constructor).name, 'tag.name]:', tag.name);
                     groups[tag.name].push(tag);
                 }
             }
@@ -207,8 +207,8 @@ var cf;
             }
         };
         ConversationalForm.prototype.setupUI = function () {
-            console.log('Conversational Form > start > mapped DOM tags:', this.tags);
-            console.log('----------------------------------------------');
+            // console.log('Conversational Form > start > mapped DOM tags:', this.tags);
+            // console.log('----------------------------------------------');
             // start the flow
             this.flowManager = new cf.FlowManager({
                 cfReference: this,
@@ -324,7 +324,7 @@ var cf;
             if (detail === void 0) { detail = null; }
             if (ConversationalForm.ILLUSTRATE_APP_FLOW && navigator.appName != 'Netscape') {
                 var highlight = "font-weight: 900; background: pink; color: black; padding: 0px 5px;";
-                console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c" + classRef.constructor.name, "font-weight: 900;", highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
+                // console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
                 if (detail)
                     console.log("** event flow detail:", detail);
             }
@@ -1218,7 +1218,7 @@ var cf;
                             }));
                         }
                         // nothing to add.
-                        // console.log("UserInput buildControlElements:", "none Control UI type, only input field is needed.");
+                        // // console.log("UserInput buildControlElements:", "none Control UI type, only input field is needed.");
                         break;
                 }
                 if (tag.type != "select" && this.elements.length > 0) {
@@ -1688,7 +1688,7 @@ var cf;
             // 	this.pattern = new RegExp("^[^@]+@[^@]+\.[^@]+$");
             // }
             if (this.type != "group") {
-                console.log('Conversational Form > Tag registered:', this.type);
+                // console.log('Conversational Form > Tag registered:', this.type);
             }
             this.refresh();
         }
@@ -1799,7 +1799,7 @@ var cf;
             this.questions = null;
         };
         Tag.isTagValid = function (element) {
-            console.log("testing123");
+            // console.log("testing123");
             return true;
         };
         Tag.createTag = function (element) {
@@ -1945,7 +1945,7 @@ var cf;
     var TagGroup = (function () {
         function TagGroup(options) {
             this.elements = options.elements;
-            console.log('TagGroup registered:', this.elements[0].type, this);
+            // console.log('TagGroup registered:', this.elements[0].type, this);
         }
         Object.defineProperty(TagGroup.prototype, "required", {
             get: function () {
@@ -2816,19 +2816,19 @@ var cf;
             return icon.outerHTML;
         };
         UploadFileUI.prototype.onDomElementChange = function (event) {
+            // console.log("...onDomElementChange");
             var _this = this;
-            console.log("...onDomElementChange");
             var reader = new FileReader();
             this._files = this.referenceTag.domElement.files;
             reader.onerror = function (event) {
-                console.log("onerror", event);
+                // console.log("onerror", event);
             };
             reader.onprogress = function (event) {
-                console.log("onprogress", event);
+                // console.log("onprogress", event);
                 _this.progressBar.style.width = ((event.loaded / event.total) * 100) + "%";
             };
             reader.onabort = function (event) {
-                console.log("onabort", event);
+                // console.log("onabort", event);
             };
             reader.onloadstart = function (event) {
                 // check for file size

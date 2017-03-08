@@ -157,7 +157,7 @@ namespace cf {
 			// }
 
 			if(this.type != "group"){
-				console.log('Conversational Form > Tag registered:', this.type);
+				// console.log('Conversational Form > Tag registered:', this.type);
 			}
 
 			this.refresh();
@@ -174,7 +174,7 @@ namespace cf {
 		}
 
 		public static isTagValid(element: HTMLInputElement | HTMLSelectElement | HTMLButtonElement | HTMLOptionElement):boolean{
-			console.log("testing123");
+			// console.log("testing123");
 			return true;
 		}
 

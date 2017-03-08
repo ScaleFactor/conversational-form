@@ -108,7 +108,7 @@ namespace cf {
 
 		constructor(options: ITagGroupOptions){
 			this.elements = options.elements;
-			console.log('TagGroup registered:', this.elements[0].type, this);
+			// console.log('TagGroup registered:', this.elements[0].type, this);
 		}
 
 		public dealloc(){

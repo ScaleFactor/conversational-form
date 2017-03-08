@@ -80,7 +80,7 @@ namespace cf {
 		constructor(options: ConversationalFormOptions){
 			window.ConversationalForm = this;
 
-			console.log('Conversational Form > version:', this.version);
+			// console.log('Conversational Form > version:', this.version);
 
 			window.ConversationalForm[this.createId] = this;
 
@@ -271,7 +271,7 @@ namespace cf {
 					if(!groups[tag.name])
 						groups[tag.name] = [];
 					
-					console.log((<any>this.constructor).name, 'tag.name]:', tag.name);
+					// console.log((<any>this.constructor).name, 'tag.name]:', tag.name);
 					groups[tag.name].push(tag);
 				}
 			}
@@ -298,8 +298,8 @@ namespace cf {
 		}
 
 		private setupUI(){
-			console.log('Conversational Form > start > mapped DOM tags:', this.tags);
-			console.log('----------------------------------------------');
+			// console.log('Conversational Form > start > mapped DOM tags:', this.tags);
+			// console.log('----------------------------------------------');
 
 			// start the flow
 			this.flowManager = new FlowManager({
@@ -439,7 +439,7 @@ namespace cf {
 
 			if(ConversationalForm.ILLUSTRATE_APP_FLOW && navigator.appName != 'Netscape'){
 				const highlight: string = "font-weight: 900; background: pink; color: black; padding: 0px 5px;";
-				console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
+				// console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
 				if(detail)
 					console.log("** event flow detail:", detail);
 			}
