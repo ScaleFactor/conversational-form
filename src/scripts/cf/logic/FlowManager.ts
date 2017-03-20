@@ -171,6 +171,13 @@ namespace cf {
 			// like dynamic tag insertion depending on an answer.. V2..
 		}
 
+		public appendStep(tag: ITag){
+			this.tags.push(tag);
+			this.maxSteps++;
+			this.step++;
+			this.validateStepAndUpdate();
+		}
+
 		public dealloc(){
 			this.eventTarget.removeEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
 			this.userInputSubmitCallback = null;

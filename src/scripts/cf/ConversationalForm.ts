@@ -152,20 +152,6 @@ namespace cf {
 				this.context.style.position = "relative";
 			}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 			// if tags are not defined then we will try and build some tags our selves..
 			if(!this.tags || this.tags.length == 0){
 				this.tags = [];
@@ -378,6 +364,14 @@ namespace cf {
 			}
 
 			this.flowManager.startFrom(index);
+		}
+
+		/**
+		* @name appendTag
+		* tag: tag, to append to the current robot questions
+		*/
+		public appendTag(tag: ITag): void {
+			this.flowManager.appendStep(tag);
 		}
 
 		public doSubmitForm(){

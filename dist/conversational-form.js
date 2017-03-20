@@ -274,6 +274,13 @@ var cf;
             }
             this.flowManager.startFrom(index);
         };
+        /**
+        * @name appendTag
+        * tag: tag, to append to the current robot questions
+        */
+        ConversationalForm.prototype.appendTag = function (tag) {
+            this.flowManager.appendStep(tag);
+        };
         ConversationalForm.prototype.doSubmitForm = function () {
             this.el.classList.add("done");
             if (this.submitCallback) {
@@ -3868,6 +3875,12 @@ var cf;
         FlowManager.prototype.addStep = function () {
             // this can be used for when a Tags value is updated and new tags are presented
             // like dynamic tag insertion depending on an answer.. V2..
+        };
+        FlowManager.prototype.appendStep = function (tag) {
+            this.tags.push(tag);
+            this.maxSteps++;
+            this.step++;
+            this.validateStepAndUpdate();
         };
         FlowManager.prototype.dealloc = function () {
             this.eventTarget.removeEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
