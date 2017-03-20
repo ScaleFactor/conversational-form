@@ -21,17 +21,6 @@
 			<input required cf-label="Sign-in with Facebook" type="radio" name="login-type" tabindex="1" value="facebook">
 		</form>
 
-
-
-
-
-
-
-
-
-
-
-
 		<script
 			type="text/javascript"
 			src="../build/bower_components/promise-polyfill/promise.js"
@@ -191,12 +180,28 @@
 
 
 		<script>
+			function createTag(message) {
+				var input = document.createElement('input');
+    		input.setAttribute('cf-questions', message);
+    		return window.cf.Tag.createTag(input);
+			}
+
 			(function(){
 				var conversationalForm = new cf.ConversationalForm({
 					formEl: document.getElementById("form"),
 					preventAutoStart: true,
+					submitCallback: function() { 
+						// add another tag to window.theform
+						console.log('Running submitCallback');
+						let next = createTag('submitted!');
+						window.theform.appendTag(next);
+					}
 				});
 
+				conversationalForm.start();
+				window.theform = conversationalForm;
+
+				/*
 				var seconds = 3;
 				conversationalForm.addRobotChatResponse("Wait before we start the questions: <strong>" + seconds + "sec.</strong>");
 				setTimeout(function(){
@@ -211,6 +216,8 @@
 						}
 					}, 1000)
 				}, 500);
+				*/
+
 			})();
 		</script>
 

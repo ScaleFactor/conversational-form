@@ -3879,8 +3879,7 @@ var cf;
         FlowManager.prototype.appendStep = function (tag) {
             this.tags.push(tag);
             this.maxSteps++;
-            this.step++;
-            this.validateStepAndUpdate();
+            this.showStep();
         };
         FlowManager.prototype.dealloc = function () {
             this.eventTarget.removeEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);

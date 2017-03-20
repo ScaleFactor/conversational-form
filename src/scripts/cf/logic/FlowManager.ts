@@ -174,8 +174,7 @@ namespace cf {
 		public appendStep(tag: ITag){
 			this.tags.push(tag);
 			this.maxSteps++;
-			this.step++;
-			this.validateStepAndUpdate();
+			this.showStep();
 		}
 
 		public dealloc(){
