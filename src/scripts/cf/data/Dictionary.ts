@@ -1,3 +1,5 @@
+/// <reference path="../logic/Helpers.ts"/>
+
 // namespace
 namespace cf {
 
@@ -6,6 +8,7 @@ namespace cf {
 		"right": number,
 		"down": number,
 		"up": number,
+		"backspace": number,
 		"enter": number,
 		"space": number,
 		"shift": number,
@@ -47,6 +50,7 @@ namespace cf {
 			"right": 39,
 			"down": 40,
 			"up": 38,
+			"backspace": 8,
 			"enter": 13,
 			"space": 32,
 			"shift": 16,
@@ -60,7 +64,7 @@ namespace cf {
 			if(!value){
 				value = ins.data["entry-not-found"];
 			}else{
-				const values: Array<string> = value.split("|");
+				const values: Array<string> = Helpers.getValuesOfBars(value);
 				value = values[Math.floor(Math.random() * values.length)];
 			}
 
@@ -87,10 +91,10 @@ namespace cf {
 			let value: string = ins.robotData[tagType];
 			if(!value){
 				// value not found, so pick a general one
-				const generals: Array<string> = ins.robotData["general"].split("|");
+				let generals: Array<string> = Helpers.getValuesOfBars(ins.robotData["general"]);
 				value = generals[Math.floor(Math.random() * generals.length)];
 			}else{
-				const values: Array<string> = value.split("|");
+				let values: Array<string> = Helpers.getValuesOfBars(value);
 				value = values[Math.floor(Math.random() * values.length)];
 			}
 
@@ -120,10 +124,13 @@ namespace cf {
 			return newData;
 		}
 
-		// can be overwritten
+		// can be overwrittenMicrophone error
 		protected data: any = {
-			"user-image": "//conversational-form-static-0iznjsw.stackpathdns.com/src/images/human.png",
+			"user-image": "https://cf-4053.kxcdn.com/conversational-form/human.png",
 			"entry-not-found": "Dictionary item not found.",
+			"awaiting-mic-permission": "Awaiting mic permission",
+			"user-audio-reponse-invalid": "I didn't get that, try again.",
+			"microphone-terminal-error": "Audio input not supported",
 			"input-placeholder": "Type your answer here ...",
 			"group-placeholder": "Type to filter list ...",
 			"input-placeholder-error": "Your input is not correct ...",
@@ -134,13 +141,13 @@ namespace cf {
 			"user-reponse-and": " and ",
 			"user-reponse-missing": "Missing input ...",
 			"user-reponse-missing-group": "Nothing selected ...",
-			"general": "General type1|General type2",
+			"general": "General type1||General type2",
 			"icon-type-file": "<svg class='cf-icon-file' viewBox='0 0 10 14' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><g stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'><g transform='translate(-756.000000, -549.000000)' fill='#0D83FF'><g transform='translate(736.000000, 127.000000)'><g transform='translate(0.000000, 406.000000)'><polygon points='20 16 26.0030799 16 30 19.99994 30 30 20 30'></polygon></g></g></g></g></svg>",
 		}
 
 		// can be overwriten
 		protected robotData: any = {
-			"robot-image": "//conversational-form-static-0iznjsw.stackpathdns.com/src/images/robot.png",
+			"robot-image": "https://cf-4053.kxcdn.com/conversational-form/robot.png",
 			"input": "Please write some text.",
 			"text": "Please write some text.",
 			"checkbox": "Select as many as you want.",
@@ -150,7 +157,8 @@ namespace cf {
 			"tel": "What's your phone number?",
 			"radio": "I need you to select one of these.",
 			"select": "Choose any of these options.",
-			"general": "General1|General2|General3.."
+			"file": "Select a file to upload.",
+			"general": "General1||General2||General3.."
 		}
 	}
 }

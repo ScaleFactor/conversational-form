@@ -19,23 +19,27 @@ namespace cf {
 		public set checked(value: boolean){
 			if(!value){
 				this.el.removeAttribute("checked");
+				this.referenceTag.domElement.removeAttribute("checked");
+				(<HTMLInputElement> this.referenceTag.domElement).checked = false;
 			}else{
 				this.el.setAttribute("checked", "checked");
+				this.referenceTag.domElement.setAttribute("checked", "checked");
+				(<HTMLInputElement> this.referenceTag.domElement).checked = true;
 			}
 		}
 
 		protected onClick(event: MouseEvent){
-			this.checked = !this.checked;
+			this.checked = true;// checked always true like native radio buttons
 			super.onClick(event);
 		}
 
 		// override
 		public getTemplate () : string {
-			const isChecked: boolean = this.referenceTag.domElement.hasAttribute("checked");
-			return `<cf-radio-button class="cf-button" checked=`+(isChecked ? "checked" : "")+`>
+			const isChecked: boolean = (<HTMLInputElement> this.referenceTag.domElement).checked || this.referenceTag.domElement.hasAttribute("checked");
+			return `<cf-radio-button class="cf-button" `+(isChecked ? "checked=checked" : "")+`>
 				<div>
 					<cf-radio></cf-radio>
-					` + this.referenceTag.label + `
+					<span>` + this.referenceTag.label + `</span>
 				</div>
 			</cf-radio-button>
 			`;

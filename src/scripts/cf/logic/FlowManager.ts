@@ -5,9 +5,10 @@ namespace cf {
 	// interface
 
 	export interface FlowDTO{
+		tag?: ITag | ITagGroup,
 		text?: string;
 		errorText?: string;
-		input?: UserInput,
+		input?: UserInputElement,
 		controlElements?: Array <IControlElement>;
 	}
 
@@ -15,6 +16,7 @@ namespace cf {
 		cfReference: ConversationalForm;
 		eventTarget: EventDispatcher;
 		tags: Array<ITag>;
+		flowStepCallback?: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void;
 	}
 
 	export const FlowEvents = {
@@ -28,18 +30,24 @@ namespace cf {
 	// class
 	export class FlowManager {
 		private static STEP_TIME: number = 1000;
-		public static generalFlowStepCallback: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void;
 
+		private flowStepCallback: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void;
 		private eventTarget: EventDispatcher;
 
 		private cfReference: ConversationalForm;
-		private tags: Array<ITag>;
+		private tags: Array<ITag | ITagGroup>;
 
 		private stopped: boolean = false;
 		private maxSteps: number = 0;
 		private step: number = 0;
 		private savedStep: number = -1;
 		private stepTimer: number = 0;
+		/**
+		* ignoreExistingTags
+		* @type boolean
+		* ignore existing tags, usually this is set to true when using startFrom, where you don't want it to check for exisintg tags in the list
+		*/
+		private ignoreExistingTags: boolean = false;
 		private userInputSubmitCallback: () => void;
 
 		public get currentTag(): ITag | ITagGroup {
@@ -49,9 +57,9 @@ namespace cf {
 		constructor(options: FlowManagerOptions){
 			this.cfReference = options.cfReference;
 			this.eventTarget = options.eventTarget;
-			this.tags = options.tags;
+			this.flowStepCallback = options.flowStepCallback;
 
-			this.maxSteps = this.tags.length;
+			this.setTags(options.tags);
 
 			this.userInputSubmitCallback = this.userInputSubmit.bind(this);
 			this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
@@ -61,6 +69,9 @@ namespace cf {
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
 			let appDTO: FlowDTO = event.detail;
+			if(!appDTO.tag)
+				appDTO.tag = this.currentTag;
+
 			let isTagValid: Boolean = this.currentTag.setTagValueAndIsValid(appDTO);
 			let hasCheckedForTagSpecificValidation: boolean = false;
 			let hasCheckedForGlobalFlowValidation: boolean = false;
@@ -85,11 +96,11 @@ namespace cf {
 				}
 
 				// check 2, this.currentTag.required <- required should be handled in the callback.
-				if(FlowManager.generalFlowStepCallback && typeof FlowManager.generalFlowStepCallback == "function"){
+				if(this.flowStepCallback && typeof this.flowStepCallback == "function"){
 					if(!hasCheckedForGlobalFlowValidation && isTagValid){
 						hasCheckedForGlobalFlowValidation = true;
 						// use global validationCallback method
-						FlowManager.generalFlowStepCallback(appDTO, () => {
+						this.flowStepCallback(appDTO, () => {
 							isTagValid = true;
 							onValidationCallback();
 						}, (optionalErrorMessage?: string) => {
@@ -109,10 +120,11 @@ namespace cf {
 					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_UPDATE, appDTO)
 
 					// update to latest DTO because values can be changed in validation flow...
-					appDTO = appDTO.input.getFlowDTO();
+					if(appDTO.input)
+						appDTO = appDTO.input.getFlowDTO();
 
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_UPDATE, {
-						detail: appDTO //UserInput value
+						detail: appDTO //UserTextInput value
 					}));
 
 					// goto next step when user has answered
@@ -122,7 +134,7 @@ namespace cf {
 
 					// Value not valid
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_INVALID, {
-						detail: appDTO //UserInput value
+						detail: appDTO //UserTextInput value
 					}));
 				}
 			}
@@ -131,7 +143,7 @@ namespace cf {
 			onValidationCallback();
 		}
 
-		public startFrom(indexOrTag: number | ITag){
+		public startFrom(indexOrTag: number | ITag, ignoreExistingTags: boolean = false){
 			if(typeof indexOrTag == "number")
 				this.step = indexOrTag;
 			else{
@@ -139,7 +151,55 @@ namespace cf {
 				this.step = this.tags.indexOf(indexOrTag);
 			}
 
-			this.validateStepAndUpdate();
+			this.ignoreExistingTags = ignoreExistingTags;
+			if(!this.ignoreExistingTags){
+				this.editTag(this.tags[this.step]);
+			}else{
+				//validate step, and ask for skipping of current step
+				this.showStep();
+			}
+		}
+
+		/**
+		* @name editTag
+		* @param tagWithConditions, the tag containing conditions (can contain multiple)
+		* @param tagConditions, the conditions of the tag to be checked
+		*/
+
+		private activeConditions: any;
+		public areConditionsInFlowFullfilled(tagWithConditions: ITag, tagConditions: Array<ConditionalValue> ): boolean{
+			if(!this.activeConditions){
+				// we don't use this (yet), it's only to keep track of active conditions
+				this.activeConditions = [];
+			}
+
+			let numConditionsFound: number = 0;
+			// find out if tagWithConditions fullfills conditions
+			for(var i = 0; i < this.tags.length; i++){
+				const tag: ITag | ITagGroup = this.tags[i];
+				if(tag !== tagWithConditions){
+					// check if tags are fullfilled
+					for (var j = 0; j < tagConditions.length; j++) {
+						let tagCondition: ConditionalValue = tagConditions[j];
+						// only check tags where tag id or name is defined
+						const tagName: string = (tag.name || tag.id || "").toLowerCase();
+						if(tagName !== "" && "cf-conditional-"+tagName === tagCondition.key.toLowerCase()){
+							// key found, so check condition
+							const flowTagValue: string | string[] = typeof tag.value === "string" ? <string> (<ITag> tag).value : <string[]>(<ITagGroup> tag).value;
+							let areConditionsMeet: boolean = Tag.testConditions(flowTagValue, tagCondition);
+							if(areConditionsMeet){
+								this.activeConditions[tagName] = tagConditions;
+								// conditions are meet
+								if(++numConditionsFound == tagConditions.length){
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			return false;
 		}
 
 		public start(){
@@ -152,12 +212,39 @@ namespace cf {
 		}
 
 		public nextStep(){
-			if(this.savedStep != -1)
-				this.step = this.savedStep;
-			
+			if(this.stopped)
+				return;
+
+			if(this.savedStep != -1){
+				// if you are looking for where the none EDIT tag conditionsl check is done
+				// then look at a tags disabled getter
+
+				let foundConditionsToCurrentTag: boolean = false;
+				// this happens when editing a tag..
+
+				// check if any tags has a conditional check for this.currentTag.name
+				for (var i = 0; i < this.tags.length; i++) {
+					var tag: ITag | ITagGroup = this.tags[i];
+					if(tag !== this.currentTag && tag.hasConditions()){
+						// tag has conditions so check if it also has the right conditions
+						if(tag.hasConditionsFor(this.currentTag.name)){
+							foundConditionsToCurrentTag = true;
+							this.step = this.tags.indexOf(this.currentTag);
+							break;
+						}
+					}
+				}
+
+				// no conditional linking found, so resume flow
+				if(!foundConditionsToCurrentTag){
+					this.step = this.savedStep;
+				}
+			}
+
 			this.savedStep = -1;//reset saved step
 
 			this.step++;
+
 			this.validateStepAndUpdate();
 		}
 
@@ -166,9 +253,23 @@ namespace cf {
 			this.validateStepAndUpdate();
 		}
 
-		public addStep(){
-			// this can be used for when a Tags value is updated and new tags are presented
-			// like dynamic tag insertion depending on an answer.. V2..
+		public getStep(): number{
+			return this.step;
+		}
+
+		public addTags(tags: Array<ITag | ITagGroup>, atIndex: number = -1) : Array<ITag | ITagGroup>{
+			// used to append new tag
+			if(atIndex !== -1 && atIndex < this.tags.length){
+				const pre: Array<ITag | ITagGroup> = this.tags.slice(0, atIndex)
+				const post: Array<ITag | ITagGroup> = this.tags.slice(atIndex, this.tags.length)
+				this.tags = this.tags.slice(0, atIndex).concat(tags).concat(post);
+			}else{
+				this.tags = this.tags.concat(tags);
+			}
+
+			this.setTags(this.tags);
+
+			return this.tags;
 		}
 
 		public appendStep(tag: ITag){
@@ -187,9 +288,36 @@ namespace cf {
 		* go back in time and edit a tag.
 		*/
 		public editTag(tag: ITag): void {
-			this.savedStep = this.step - 1;
+			this.ignoreExistingTags = false;
+			this.savedStep = this.step - 1;//save step
 			this.step = this.tags.indexOf(tag); // === this.currentTag
 			this.validateStepAndUpdate();
+
+			if(this.activeConditions && Object.keys(this.activeConditions).length > 0){
+				this.savedStep = -1;//don't save step, as we wont return
+
+				// clear chatlist.
+				this.cfReference.chatList.clearFrom(this.step + 1);
+
+				//reset from active tag, brute force
+				const editTagIndex: number = this.tags.indexOf(tag);
+				for(var i = editTagIndex + 1; i < this.tags.length; i++){
+					const tag: ITag | ITagGroup = this.tags[i];
+					tag.reset();
+				}
+			}
+		}
+
+		private setTags(tags: Array<ITag | ITagGroup>){
+			this.tags = tags;
+
+			for(var i = 0; i < this.tags.length; i++){
+				const tag: ITag | ITagGroup = this.tags[i];
+				tag.eventTarget = this.eventTarget;
+				tag.flowManager = this;
+			}
+
+			this.maxSteps = this.tags.length;
 		}
 
 		private skipStep(){
@@ -221,9 +349,14 @@ namespace cf {
 
 			this.currentTag.refresh();
 
-			this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.FLOW_UPDATE, {
-				detail: this.currentTag
-			}));
+			setTimeout(() => {
+				this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.FLOW_UPDATE, {
+					detail: {
+						tag: this.currentTag,
+						ignoreExistingTag: this.ignoreExistingTags
+					}
+				}));
+			}, 0);
 		}
 	}
 }

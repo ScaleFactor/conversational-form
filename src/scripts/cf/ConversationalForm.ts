@@ -1,15 +1,17 @@
-// version 0.9.0
-
-/// <reference path="ui/UserInput.ts"/>
+/// <reference path="ui/inputs/UserTextInput.ts"/>
 /// <reference path="ui/chat/ChatList.ts"/>
 /// <reference path="logic/FlowManager.ts"/>
 /// <reference path="logic/EventDispatcher.ts"/>
 /// <reference path="form-tags/Tag.ts"/>
+/// <reference path="form-tags/CfRobotMessageTag.ts"/>
 /// <reference path="form-tags/TagGroup.ts"/>
 /// <reference path="form-tags/InputTag.ts"/>
 /// <reference path="form-tags/SelectTag.ts"/>
 /// <reference path="form-tags/ButtonTag.ts"/>
 /// <reference path="data/Dictionary.ts"/>
+/// <reference path="parsing/TagsParser.ts"/>
+/// <reference path="interfaces/IUserInput.ts"/>
+/// <reference path="interfaces/IUserInterfaceOptions.ts"/>
 
 interface Window { ConversationalForm: any; }
 
@@ -17,27 +19,78 @@ namespace cf {
 
 	// CUI options
 	export interface ConversationalFormOptions{
-		tags?: Array<ITag>,
-		formEl: HTMLFormElement,
-		context?: HTMLElement,
-		dictionaryData?: Object,
-		dictionaryRobot?: Object,
-		userImage?: string,
-		robotImage?: string,
-		submitCallback?: () => void | HTMLButtonElement,
+		// HTMLFormElement
+		formEl: HTMLFormElement;
+
+		// context (HTMLElement) of where to append the ConversationalForm (see also cf-context attribute)
+		context?: HTMLElement;
+
+		// pass in custom tags (when prevent the auto-instantiation of ConversationalForm)
+		tags?: Array<ITag>;
+
+		// overwrite the default user Dictionary items
+		dictionaryData?: Object;
+
+		// overwrite the default robot Dictionary items
+		dictionaryRobot?: Object;
+
+		//base64 || image url // overwrite user image, without overwritting the user dictionary
+		userImage?: string;
+
+		// base64 || image url // overwrite robot image, without overwritting the robot dictionary
+		robotImage?: string;
+
+		// custom submit callback if button[type=submit] || form.submit() is not wanted..
+		submitCallback?: () => void | HTMLButtonElement;
+
+		// can be set to false to allow for loading and packaging of Conversational Form styles within a larger project.
 		loadExternalStyleSheet?: boolean;
+
+		// prevent auto appending of Conversational Form, append it yourself.
 		preventAutoAppend?: boolean;
+
+		// start the form in your own time, {cf-instance}.start(), exclude cf-form from form tag, see examples: manual-start.html
 		preventAutoStart?: boolean;
+
+		// prevents the initial auto focus on UserInput
+		preventAutoFocus?: boolean;
+
+		// optional horizontal scroll accerlation value, 0-1
 		scrollAccerlation?: number;
-		flowStepCallback?: (dto: FlowDTO, success: () => void, error: () => void) => void, // a optional one catch all method, will be calles on each Tag.ts if set.
+
+		// allow for a global validation method, asyncronous, so a value can be validated through a server, call success || error
+		flowStepCallback?: (dto: FlowDTO, success: () => void, error: () => void) => void;
+
+		// optional event dispatcher, has to be an instance of cf.EventDispatcher
+		eventDispatcher?: EventDispatcher;
+
+		// optional, set microphone nput, future, add other custom inputs, ex. VR
+		microphoneInput?:IUserInput;
+
+		// optional, hide ÜserInputField when radio, checkbox, select input is active
+		hideUserInputOnNoneTextInput?:boolean;
+
+		// optional, parameters for the User Interface of Conversational Form, set here to show thinking dots or not, set delay time in-between robot responses
+		userInterfaceOptions?:IUserInterfaceOptions;
+
+		// optional, Whenther to suppress console.log, default true
+		suppressLog?:boolean;
+	}
+
+	// CUI formless options
+	export interface ConversationalFormlessOptions{
+		options: any;
+		tags: any;
 	}
 
 	export class ConversationalForm{
-		public version: string = "0.9.1";
-		private cdnPath: string = "//conversational-form-091-0iznjsw.stackpathdns.com/";
+		public version: string = "0.9.81";
 
 		public static animationsEnabled: boolean = true;
+		public static illustrateAppFlow: boolean = true;
+		public static suppressLog: boolean = true;
 
+		private cdnPath: string = "https://cdn.jsdelivr.net/gh/space10-community/conversational-form@{version}/dist/";
 		/**
 		 * createId
 		 * Id of the instance, to isolate events
@@ -57,38 +110,57 @@ namespace cf {
 			if(!this._eventTarget){
 				this._eventTarget = new EventDispatcher(this);
 			}
+
 			return this._eventTarget;
 		}
 
 		public dictionary: Dictionary;
 		public el: HTMLElement;
+		public chatList: ChatList;
+		public uiOptions: IUserInterfaceOptions;
 
 		private context: HTMLElement;
 		private formEl: HTMLFormElement;
-		private submitCallback: () => void | HTMLButtonElement;
+		private submitCallback: (cf: ConversationalForm) => void | HTMLButtonElement;
 		private onUserAnswerClickedCallback: () => void;
+		private flowStepCallback: (dto: FlowDTO, success: () => void, error: () => void) => void;
 		private tags: Array<ITag | ITagGroup>;
 		private flowManager: FlowManager;
-
-		private chatList: ChatList;
-		private userInput: UserInput;
 		private isDevelopment: boolean = false;
 		private loadExternalStyleSheet: boolean = true;
 		private preventAutoAppend: boolean = false;
 		private preventAutoStart: boolean = false;
 
+		private userInput: UserTextInput;
+		private microphoneInputObj: IUserInput;
+
 		constructor(options: ConversationalFormOptions){
 			window.ConversationalForm = this;
 
-			// console.log('Conversational Form > version:', this.version);
+			this.cdnPath = this.cdnPath.split("{version}").join(this.version);
+
+			if(typeof options.suppressLog === 'boolean')
+				ConversationalForm.suppressLog = options.suppressLog;
+
+			if(!ConversationalForm.suppressLog) console.log('Conversational Form > version:', this.version);
+			if(!ConversationalForm.suppressLog) console.log('Conversational Form > options:', options);
 
 			window.ConversationalForm[this.createId] = this;
 
+			// possible to create your own event dispatcher, so you can tap into the events of the app
+			if(options.eventDispatcher)
+				this._eventTarget = <EventDispatcher> options.eventDispatcher;
+
+			if(!this.eventTarget.cf)
+				this.eventTarget.cf = this;
+
 			// set a general step validation callback
 			if(options.flowStepCallback)
-				FlowManager.generalFlowStepCallback = options.flowStepCallback;
+				this.flowStepCallback = options.flowStepCallback;
 			
-			if(document.getElementById("conversational-form-development") || options.loadExternalStyleSheet == false){
+			this.isDevelopment = ConversationalForm.illustrateAppFlow = !!document.getElementById("conversational-form-development");
+
+			if(this.isDevelopment || options.loadExternalStyleSheet == false){
 				this.loadExternalStyleSheet = false;
 			}
 
@@ -104,13 +176,23 @@ namespace cf {
 			this.formEl = options.formEl;
 			this.formEl.setAttribute("cf-create-id", this.createId);
 
+			if(options.hideUserInputOnNoneTextInput === true){
+				UserInputElement.hideUserInputOnNoneTextInput = true;
+			}
+
+			// TODO: can be a string when added as formless..
+			// this.validationCallback = eval(this.domElement.getAttribute("cf-validation"));
 			this.submitCallback = options.submitCallback;
+			if(this.submitCallback && typeof this.submitCallback === "string"){
+				// a submit callback method added to json, so use eval to evaluate method
+				this.submitCallback = eval(this.submitCallback);
+			}
 
 			if(this.formEl.getAttribute("cf-no-animation") == "")
 				ConversationalForm.animationsEnabled = false;
 
-			if(this.formEl.getAttribute("cf-prevent-autofocus") == "")
-				UserInput.preventAutoFocus = true;
+			if(options.preventAutoFocus || this.formEl.getAttribute("cf-prevent-autofocus") == "")
+				UserInputElement.preventAutoFocus = true;
 
 			this.dictionary = new Dictionary({
 				data: options.dictionaryData,
@@ -119,16 +201,27 @@ namespace cf {
 				robotImage: options.robotImage,
 			});
 
-			// emoji.. fork and set your own values..
-
 			this.context = options.context ? options.context : document.body;
 			this.tags = options.tags;
+
+			if(options.microphoneInput){
+				// validate the user ..... TODO....
+				if(!options.microphoneInput.init || !options.microphoneInput.input){
+					console.warn("Conversational Form: microphoneInput is not correctly setup", options.microphoneInput);
+					options.microphoneInput = null;
+				}
+			}
+
+			this.microphoneInputObj = options.microphoneInput;
+
+			// set the ui options
+			this.uiOptions = Helpers.extendObject(UserInterfaceDefaultOptions, options.userInterfaceOptions || {});
+			// console.log('this.uiOptions:', this.uiOptions);
 
 			this.init();
 		}
 
 		public init(): ConversationalForm{
-			Helpers.setEmojiLib();
 
 			if(this.loadExternalStyleSheet){
 				// not in development/examples, so inject production css
@@ -140,7 +233,6 @@ namespace cf {
 				style.setAttribute("rel", "stylesheet");
 				style.setAttribute("href", githubMasterUrl);
 				head.appendChild(style);
-
 			}else{
 				// expect styles to be in the document
 				this.isDevelopment = true;
@@ -156,7 +248,7 @@ namespace cf {
 			if(!this.tags || this.tags.length == 0){
 				this.tags = [];
 
-				let fields: Array<HTMLInputElement | HTMLSelectElement | HTMLButtonElement> = [].slice.call(this.formEl.querySelectorAll("input, select, button, textarea"), 0);
+				let fields: Array<HTMLInputElement | HTMLSelectElement | HTMLButtonElement> = [].slice.call(this.formEl.querySelectorAll("input, select, button, textarea, cf-robot-message"), 0);
 
 				for (var i = 0; i < fields.length; i++) {
 					const element = fields[i];
@@ -188,7 +280,7 @@ namespace cf {
 			}
 
 			//let's start the conversation
-			this.setupTagGroups();
+			this.tags = this.setupTagGroups(this.tags);
 			this.setupUI();
 
 			return this;
@@ -209,9 +301,20 @@ namespace cf {
 			}
 		}
 
-		public getFormData(): FormData{
-			var formData: FormData = new FormData(this.formEl);
-			return formData;
+		public getFormData(serialized: boolean = false): FormData | any{
+			if(serialized){
+				const serialized: any = {}
+				for(var i = 0; i < this.tags.length; i++){
+					const element = this.tags[i];
+					if(element.value)
+						serialized[element.name || "tag-" + i.toString()] = element.value
+				}
+
+				return serialized
+			}else{
+				var formData: FormData = new FormData(this.formEl);
+				return formData;
+			}
 		}
 
 		public addRobotChatResponse(response: string){
@@ -233,6 +336,7 @@ namespace cf {
 
 		public start(){
 			this.userInput.disabled = false;
+			if(!ConversationalForm.suppressLog) console.log('option, disabled 3', );
 			this.userInput.visible = true;
 
 			this.flowManager.start();
@@ -247,17 +351,16 @@ namespace cf {
 			}
 		}
 
-		private setupTagGroups(){
+		private setupTagGroups(tags: Array<ITag>) : Array<ITag | ITagGroup>{
 			// make groups, from input tag[type=radio | type=checkbox]
 			// groups are used to bind logic like radio-button or checkbox dependencies
 			var groups: any = [];
-			for(var i = 0; i < this.tags.length; i++){
-				const tag = this.tags[i];
+			for(var i = 0; i < tags.length; i++){
+				const tag: ITag = tags[i];
 				if(tag.type == "radio" || tag.type == "checkbox"){
 					if(!groups[tag.name])
 						groups[tag.name] = [];
-					
-					// console.log((<any>this.constructor).name, 'tag.name]:', tag.name);
+
 					groups[tag.name].push(tag);
 				}
 			}
@@ -266,7 +369,21 @@ namespace cf {
 				for (let group in groups){
 					if(groups[group].length > 0){
 						// always build groupd when radio or checkbox
+
+						// find the fieldset, if any..
+						let isFieldsetValidForCF = (tag: HTMLElement) : boolean => {return tag && tag.tagName.toLowerCase() !== "fieldset" && !tag.hasAttribute("cf-questions")};
+
+						let fieldset: HTMLElement = groups[group][0].domElement.parentNode;
+						if(fieldset && fieldset.tagName.toLowerCase() !== "fieldset"){
+							fieldset = <HTMLElement> fieldset.parentNode;
+							if(isFieldsetValidForCF(fieldset)){
+								// not a valid fieldset, we only accept fieldsets that contain cf attr
+								fieldset = null;
+							}
+						}
+
 						const tagGroup: TagGroup = new TagGroup({
+							fieldset: <HTMLFieldSetElement> fieldset, // <-- can be null
 							elements: groups[group]
 						});
 
@@ -274,22 +391,22 @@ namespace cf {
 						for(var i = 0; i < groups[group].length; i++){
 							let tagToBeRemoved: InputTag = groups[group][i];
 							if(i == 0)// add the group at same index as the the first tag to be removed
-								this.tags.splice(this.tags.indexOf(tagToBeRemoved), 1, tagGroup);
+								tags.splice(tags.indexOf(tagToBeRemoved), 1, tagGroup);
 							else
-								this.tags.splice(this.tags.indexOf(tagToBeRemoved), 1);
+								tags.splice(tags.indexOf(tagToBeRemoved), 1);
 						}
 					}
 				}
 			}
+
+			return tags;
 		}
 
 		private setupUI(){
-			// console.log('Conversational Form > start > mapped DOM tags:', this.tags);
-			// console.log('----------------------------------------------');
-
 			// start the flow
 			this.flowManager = new FlowManager({
 				cfReference: this,
+				flowStepCallback: this.flowStepCallback,
 				eventTarget: this.eventTarget,
 				tags: this.tags
 			});
@@ -314,14 +431,19 @@ namespace cf {
 
 			// Conversational Form UI
 			this.chatList = new ChatList({
-				eventTarget: this.eventTarget
-			});
-			innerWrap.appendChild(this.chatList.el);
-
-			this.userInput = new UserInput({
 				eventTarget: this.eventTarget,
 				cfReference: this
 			});
+
+			innerWrap.appendChild(this.chatList.el);
+
+			this.userInput = new UserTextInput({
+				microphoneInputObj: this.microphoneInputObj,
+				eventTarget: this.eventTarget,
+				cfReference: this
+			});
+
+			this.chatList.addInput(this.userInput);
 
 			innerWrap.appendChild(this.userInput.el);
 
@@ -334,7 +456,7 @@ namespace cf {
 				this.flowManager.start();
 
 			if(!this.tags || this.tags.length == 0){
-				// no tags, so just so the input
+				// no tags, so just show the input
 				this.userInput.visible = true;
 			}
 		}
@@ -349,11 +471,58 @@ namespace cf {
 		}
 
 		/**
+		* @name addTag
+		* Add a tag to the conversation. This can be used to add tags at runtime
+		* see examples/formless.html
+		*/
+		public addTags(tagsData: Array<DataTag>, addAfterCurrentStep: boolean = true, atIndex: number = -1): void {
+			let tags: Array<ITag | ITagGroup> = [];
+
+			for (let i = 0; i < tagsData.length; i++) {
+				let tagData: DataTag = tagsData[i];
+
+				if(tagData.tag === "fieldset"){
+					// group ..
+					// const fieldSetChildren: Array<DataTag> = tagData.children;
+					// parse group tag
+					const groupTag: HTMLElement = TagsParser.parseGroupTag(tagData);
+
+					for (let j = 0; j < groupTag.children.length; j++) {
+						let tag: HTMLElement = <HTMLElement> groupTag.children[j];
+						if(Tag.isTagValid(tag)){
+							let tagElement : ITag = Tag.createTag(<HTMLInputElement | HTMLSelectElement | HTMLButtonElement> tag);
+							// add ref for group creation
+							if(!tagElement.name){
+								tagElement.name = "tag-ref-"+j.toString();
+							}
+
+							tags.push(tagElement);
+						}
+					}
+				}else{
+					let tag: HTMLElement | HTMLInputElement | HTMLSelectElement | HTMLButtonElement = tagData.tag === "select" ? TagsParser.parseGroupTag(tagData) : TagsParser.parseTag(tagData);
+					if(Tag.isTagValid(tag)){
+						let tagElement : ITag = Tag.createTag(<HTMLInputElement | HTMLSelectElement | HTMLButtonElement> tag);
+						tags.push(tagElement);
+					}
+				}
+			}
+
+			// map free roaming checkbox and radio tags into groups
+			tags = this.setupTagGroups(tags);
+
+			// add new tags to the flow
+			this.tags = this.flowManager.addTags(tags, addAfterCurrentStep ? this.flowManager.getStep() + 1 : atIndex);
+			//this.flowManager.startFrom ?
+		}
+
+		/**
 		* @name remapTagsAndStartFrom
 		* index: number, what index to start from
-		* setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the valie of the current tag before changing index.
+		* setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the value of the current tag before changing index.
+		* ignoreExistingTags: boolean, possible to ignore existing tags, to allow for the flow to just "happen"
 		*/
-		public remapTagsAndStartFrom(index: number = 0, setCurrentTagValue: boolean = false){
+		public remapTagsAndStartFrom(index: number = 0, setCurrentTagValue: boolean = false, ignoreExistingTags: boolean = false){
 			if(setCurrentTagValue){
 				this.chatList.setCurrentUserResponse(this.userInput.getFlowDTO());
 			}
@@ -363,7 +532,16 @@ namespace cf {
 				tag.refresh();
 			}
 
-			this.flowManager.startFrom(index);
+			this.flowManager.startFrom(index, ignoreExistingTags);
+		}
+
+		/**
+		* @name focus
+		* Sets focus on Conversational Form
+		*/
+		public focus(){
+			if(this.userInput)
+				this.userInput.setFocusOnInput();
 		}
 
 		/**
@@ -377,9 +555,11 @@ namespace cf {
 		public doSubmitForm(){
 			this.el.classList.add("done");
 
+			this.userInput.reset();
+
 			if(this.submitCallback){
 				// remove should be called in the submitCallback
-				this.submitCallback();
+				this.submitCallback(this);
 			}else{
 				// this.formEl.submit();
 				// doing classic .submit wont trigger onsubmit if that is present on form element
@@ -398,6 +578,10 @@ namespace cf {
 		}
 
 		public remove(){
+			if(this.microphoneInputObj){
+				this.microphoneInputObj = null;
+			}
+
 			if(this.onUserAnswerClickedCallback){
 				this.eventTarget.removeEventListener(ChatResponseEvents.USER_ANSWER_CLICKED, this.onUserAnswerClickedCallback, false);
 				this.onUserAnswerClickedCallback = null;
@@ -426,48 +610,81 @@ namespace cf {
 		}
 
 		// to illustrate the event flow of the app
-		public static ILLUSTRATE_APP_FLOW: boolean = true;
 		public static illustrateFlow(classRef: any, type: string, eventType: string, detail: any = null){
 			// ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, event.detail);
 			// ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
-			if(ConversationalForm.ILLUSTRATE_APP_FLOW && navigator.appName != 'Netscape'){
-				const highlight: string = "font-weight: 900; background: pink; color: black; padding: 0px 5px;";
-				// console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
+			if(ConversationalForm.illustrateAppFlow){
+				const highlight: string = "font-weight: 900; background: "+(type == "receive" ? "#e6f3fe" : "pink")+"; color: black; padding: 0px 5px;";
+				if(!ConversationalForm.suppressLog) console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
 				if(detail)
-					console.log("** event flow detail:", detail);
+					if(!ConversationalForm.suppressLog) console.log("** event flow detail:", detail);
 			}
 		}
 
 		private static hasAutoInstantiated: boolean = false;
+		public static startTheConversation(data: ConversationalFormOptions | ConversationalFormlessOptions) {
+			let isFormless: boolean = !!(<any> data).formEl === false;
+			let formlessTags: any;
+			let constructorOptions: ConversationalFormOptions;
+
+			if(isFormless){
+				if(typeof data === "string"){
+					// Formless init w. string
+					isFormless = true;
+					const json: any = JSON.parse(data)
+					constructorOptions = (<ConversationalFormlessOptions> json).options;
+					formlessTags = (<ConversationalFormlessOptions> json).tags;
+				}else{
+					// Formless init w. JSON object
+					constructorOptions = (<ConversationalFormlessOptions> data).options;
+					formlessTags = (<ConversationalFormlessOptions> data).tags;
+				}
+
+				// formless, so generate the pseudo tags
+				const formEl: HTMLFormElement = cf.TagsParser.parseJSONIntoElements(formlessTags)
+				constructorOptions.formEl = formEl;
+			}else{
+				// keep it standard
+				constructorOptions = <ConversationalFormOptions> data;
+			}
+
+			return new cf.ConversationalForm(constructorOptions);
+		}
+
 		public static autoStartTheConversation() {
-			if(ConversationalForm.hasAutoInstantiated)
+			if(cf.ConversationalForm.hasAutoInstantiated)
 				return;
 
 			// auto start the conversation
-			const formElements: NodeListOf<Element> = document.querySelectorAll("form[cf-form]") || document.querySelectorAll("form[cf-form-element]");
+			let formElements: NodeListOf<Element> = document.querySelectorAll("form[cf-form]");
+
+			// no form elements found, look for the old init attribute
+			if(formElements.length === 0){
+				formElements = document.querySelectorAll("form[cf-form-element]");
+			}
+
 			const formContexts: NodeListOf<Element> = document.querySelectorAll("*[cf-context]");
 
 			if(formElements && formElements.length > 0){
 				for (let i = 0; i < formElements.length; i++) {
 					let form: HTMLFormElement = <HTMLFormElement>formElements[i];
 					let context: HTMLFormElement = <HTMLFormElement>formContexts[i];
-					new cf.ConversationalForm({
+					cf.ConversationalForm.startTheConversation({
 						formEl: form,
 						context: context
 					});
 				}
 
-				ConversationalForm.hasAutoInstantiated = true;
+				cf.ConversationalForm.hasAutoInstantiated = true;
 			}
 		}
 	}
-
 }
 
 if(document.readyState == "complete"){
 	// if document alread instantiated, usually this happens if Conversational Form is injected through JS
-	cf.ConversationalForm.autoStartTheConversation();
+	setTimeout(() => cf.ConversationalForm.autoStartTheConversation(), 0);
 }else{
 	// await for when document is ready
 	window.addEventListener("load", () =>{

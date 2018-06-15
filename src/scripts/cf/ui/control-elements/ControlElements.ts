@@ -11,17 +11,23 @@
 
 // namespace
 namespace cf {
+	export const ControlElementsEvents = {
+		ON_RESIZE: "cf-on-control-elements-resize",
+		CHANGED: "cf-on-control-elements-changed"
+	}
 	export interface ControlElementsDTO{
 		height: number;
 	}
 
 	export interface IControlElementsOptions{
 		el: HTMLElement;
+		cfReference: ConversationalForm;
 		infoEl: HTMLElement;
 		eventTarget: EventDispatcher;
 	}
 
 	export class ControlElements {
+		private cfReference: ConversationalForm;
 		private elements: Array<IControlElement | OptionsList>;
 		private eventTarget: EventDispatcher;
 		private el: HTMLElement;
@@ -29,6 +35,7 @@ namespace cf {
 		private infoElement: HTMLElement;
 		private currentControlElement: IControlElement;
 
+		private animateInFromReponseTimer: number = 0;
 		private ignoreKeyboardInput: boolean = false;
 		private rowIndex: number = -1;
 		private columnIndex: number = 0;
@@ -40,12 +47,12 @@ namespace cf {
 		private onElementFocusCallback: () => void;
 		private onScrollCallback: () => void;
 		private onElementLoadedCallback: () => void;
+		private onResizeCallback: () => void;
 
 		private elementWidth: number = 0;
 		private filterListNumberOfVisible: number = 0;
 		private listScrollController: ScrollController;
 
-		private rAF: number;
 		private listWidth: number = 0;
 
 		public get active():boolean{
@@ -97,11 +104,16 @@ namespace cf {
 		constructor(options: IControlElementsOptions){
 			this.el = options.el;
 			this.eventTarget = options.eventTarget;
+			this.cfReference = options.cfReference;
+
 			this.list = <HTMLElement> this.el.getElementsByTagName("cf-list")[0];
 			this.infoElement = options.infoEl;
 
 			this.onScrollCallback = this.onScroll.bind(this);
 			this.el.addEventListener('scroll', this.onScrollCallback, false);
+
+			this.onResizeCallback = this.onResize.bind(this);
+			window.addEventListener('resize', this.onResizeCallback, false);
 
 			this.onElementFocusCallback = this.onElementFocus.bind(this);
 			this.eventTarget.addEventListener(ControlElementEvents.ON_FOCUS, this.onElementFocusCallback, false);
@@ -137,7 +149,7 @@ namespace cf {
 		* when element is loaded, usally image loaded.
 		*/
 		private onElementLoaded(event: CustomEvent){
-			this.resize();
+			this.onResize(null);
 		}
 
 		private onElementFocus(event: CustomEvent){
@@ -166,7 +178,24 @@ namespace cf {
 		}
 
 		private onChatReponsesUpdated(event:CustomEvent){
-			this.animateElementsIn();
+			clearTimeout(this.animateInFromReponseTimer);
+
+			// only show when user response
+			if(!(<any> event.detail).currentResponse.isRobotResponse){
+				this.animateInFromReponseTimer = setTimeout(() => {
+					this.animateElementsIn();
+				}, this.cfReference.uiOptions.controlElementsInAnimationDelay);
+			}
+		}
+
+		private onListChanged(){
+			// reflow
+			this.list.offsetHeight;
+
+			requestAnimationFrame(() => {
+				ConversationalForm.illustrateFlow(this, "dispatch", ControlElementsEvents.CHANGED);
+				this.eventTarget.dispatchEvent(new CustomEvent(ControlElementsEvents.CHANGED));
+			})
 		}
 
 		private onUserInputKeyChange(event: CustomEvent){
@@ -174,9 +203,9 @@ namespace cf {
 				this.ignoreKeyboardInput = false;
 				return;
 			}
-
+			
 			const dto: InputKeyChangeDTO = event.detail;
-			const userInput: UserInput = dto.dto.input;
+			const userInput: UserTextInput = <UserTextInput> dto.dto.input;
 
 			if(this.active){
 				const isNavKey: boolean = [Dictionary.keyCodes["left"], Dictionary.keyCodes["right"], Dictionary.keyCodes["down"], Dictionary.keyCodes["up"]].indexOf(dto.keyCode) != -1;
@@ -185,7 +214,7 @@ namespace cf {
 				if(shouldFilter){
 					// input field is active, so we should filter..
 					const dto: FlowDTO = (<InputKeyChangeDTO> event.detail).dto;
-					const inputValue: string = dto.input.getInputValue();
+					const inputValue: string = (<UserTextInput> dto.input).getInputValue();
 					this.filterElementsFrom(inputValue);
 				}else{
 					if(dto.keyCode == Dictionary.keyCodes["left"]){
@@ -313,7 +342,6 @@ namespace cf {
 				// crude way of checking if list has changed...
 				const hasListChanged: boolean = this.filterListNumberOfVisible != itemsVisible.length;
 				if(hasListChanged){
-					this.resize();
 					this.animateElementsIn();
 				}
 				
@@ -338,6 +366,8 @@ namespace cf {
 
 		public animateElementsIn(){
 			if(this.elements){
+				this.resize();
+
 				const elements: Array<IControlElement> = this.getElements();
 				if(elements.length > 0){
 					if(!this.el.classList.contains("animate-in"))
@@ -352,7 +382,7 @@ namespace cf {
 		}
 
 		private getElements(): Array <IControlElement> {
-			if(this.elements.length > 0 && this.elements[0].type == "OptionsList")
+			if(this.elements && this.elements.length > 0 && this.elements[0].type == "OptionsList")
 				return (<OptionsList> this.elements[0]).elements;
 			
 			return <Array<IControlElement>> this.elements;
@@ -396,12 +426,7 @@ namespace cf {
 		}
 
 		public resetAfterErrorMessage(){
-			if(this.currentControlElement){
-				//reverse value of currentControlElement.
-				(<RadioButton | CheckboxButton>this.currentControlElement).checked = !(<RadioButton | CheckboxButton>this.currentControlElement).checked;
-				this.currentControlElement = null;
-			}
-
+			this.currentControlElement = null;
 			this.disabled = false;
 		}
 		
@@ -424,23 +449,47 @@ namespace cf {
 			}
 		}
 
+		public updateStateOnElementsFromTag(tag: ITag){
+			for (var index = 0; index < this.elements.length; index++) {
+				var element: any = this.elements[index];
+
+				if(element.referenceTag == tag){
+					this.updateStateOnElements(element);
+					break;
+				}
+			}
+		}
+
 		public updateStateOnElements(controlElement: IControlElement){
-			this.disabled = true;
 			this.currentControlElement = controlElement;
 
-			if(controlElement.type == "RadioButton"){
+			if(this.currentControlElement.type == "RadioButton"){
 				// uncheck other radio buttons...
 				const elements: Array<IControlElement> = this.getElements();
 				for (let i = 0; i < elements.length; i++) {
 					let element: RadioButton = <RadioButton>elements[i];
 					if(element != controlElement){
 						element.checked = false;
+					}else{
+						element.checked = true;
+					}
+				}
+			}else if(this.currentControlElement.type == "CheckboxButton"){
+				// change only the changed input
+				const elements: Array<IControlElement> = this.getElements();
+				for (let i = 0; i < elements.length; i++) {
+					let element: CheckboxButton = <CheckboxButton>elements[i];
+					if(element == controlElement){
+						const isChecked: boolean = (<HTMLInputElement> element.referenceTag.domElement).checked;
+						element.checked = isChecked;
 					}
 				}
 			}
 		}
 
 		public reset(){
+			this.infoElement.classList.remove("show");
+
 			this.el.classList.remove("one-row");
 			this.el.classList.remove("two-row");
 		}
@@ -480,6 +529,7 @@ namespace cf {
 
 							dto.controlElements.push(element);
 						}
+
 						
 						dto.text = Dictionary.parseAndGetMultiValueString(values);
 						
@@ -495,6 +545,8 @@ namespace cf {
 
 							dto.controlElements.push(element);
 						}
+
+
 						break;
 					case "OptionsList":
 						var element: OptionsList = <OptionsList> this.elements[0];
@@ -525,6 +577,20 @@ namespace cf {
 			return dto;
 		}
 
+		public clearTagsAndReset(){
+			this.reset();
+
+			if(this.elements){
+				while(this.elements.length > 0){
+					this.elements.pop().dealloc();
+				}
+			}
+
+			this.list.innerHTML = "";
+
+			this.onListChanged();
+		}
+
 		public buildTags(tags: Array<ITag>){
 			this.disabled = false;
 
@@ -532,11 +598,7 @@ namespace cf {
 			const bottomList: HTMLUListElement = (<HTMLUListElement> this.el.parentNode).getElementsByTagName("ul")[1];
 
 			// remove old elements
-			if(this.elements ){
-				while(this.elements.length > 0){
-					this.elements.pop().dealloc();
-				}
-			}
+			this.clearTagsAndReset();
 
 			this.elements = [];
 
@@ -573,7 +635,6 @@ namespace cf {
 							}));
 						}
 						// nothing to add.
-						// // console.log("UserInput buildControlElements:", "none Control UI type, only input field is needed.");
 						break;
 				}
 
@@ -591,17 +652,23 @@ namespace cf {
 			}
 
 			new Promise((resolve: any, reject: any) => this.resize(resolve, reject)).then(() => {
-				const h: number = this.el.classList.contains("one-row") ? 52 : this.el.classList.contains("two-row") ? 102 : 0;
+				const h: number = this.list.offsetHeight;//this.el.classList.contains("one-row") ? 52 : this.el.classList.contains("two-row") ? 102 : 0;
 
 				const controlElementsAddedDTO: ControlElementsDTO = {
 					height: h,
 				};
+
+				this.onListChanged();
 
 				ConversationalForm.illustrateFlow(this, "dispatch", UserInputEvents.CONTROL_ELEMENTS_ADDED, controlElementsAddedDTO);
 				this.eventTarget.dispatchEvent(new CustomEvent(UserInputEvents.CONTROL_ELEMENTS_ADDED, {
 					detail: controlElementsAddedDTO
 				}));
 			});
+		}
+
+		private onResize(event: Event){
+			this.resize();
 		}
 
 		public resize(resolve?: any, reject?: any){
@@ -613,98 +680,97 @@ namespace cf {
 			this.el.classList.remove("two-row");
 			this.elementWidth = 0;
 
-			setTimeout(() => {
-				this.listWidth = 0;
-				const elements: Array <IControlElement> = this.getElements();
+			this.listWidth = 0;
+			const elements: Array <IControlElement> = this.getElements();
 
-				if(elements.length > 0){
-					const listWidthValues: Array<number> = [];
-					const listWidthValues2: Array<IControlElement> = [];
-					let containsElementWithImage: boolean = false;
-					for (let i = 0; i < elements.length; i++) {
-						let element: IControlElement = <IControlElement>elements[i];
-						if(element.visible){
-							element.calcPosition();
-							this.listWidth += element.positionVector.width;
-							listWidthValues.push(element.positionVector.x + element.positionVector.width);
-							listWidthValues2.push(element);
-						}
-
-						if(element.hasImage())
-							containsElementWithImage = true;
+			if(elements && elements.length > 0){
+				const listWidthValues: Array<number> = [];
+				const listWidthValues2: Array<IControlElement> = [];
+				let containsElementWithImage: boolean = false;
+				for (let i = 0; i < elements.length; i++) {
+					let element: IControlElement = <IControlElement>elements[i];
+					if(element.visible){
+						element.calcPosition();
+						this.listWidth += element.positionVector.width;
+						listWidthValues.push(element.positionVector.x + element.positionVector.width);
+						listWidthValues2.push(element);
 					}
 
-					const elOffsetWidth: number = this.el.offsetWidth;
-					let isListWidthOverElementWidth: boolean = this.listWidth > elOffsetWidth;
-					if(isListWidthOverElementWidth && !containsElementWithImage){
-						this.el.classList.add("two-row");
-						this.listWidth = Math.max(elOffsetWidth, Math.round((listWidthValues[Math.floor(listWidthValues.length / 2)]) + 50));
-						this.list.style.width = this.listWidth + "px";
-					}else{
-						this.el.classList.add("one-row");
-					}
-
-					setTimeout(() => {
-						// recalc after LIST classes has been added
-						for (let i = 0; i < elements.length; i++) {
-							let element: IControlElement = <IControlElement>elements[i];
-							if(element.visible){
-								element.calcPosition();
-							}
-						}
-
-						// check again after classes are set.
-						isListWidthOverElementWidth = this.listWidth > elOffsetWidth;
-
-						// sort the list so we can set tabIndex properly
-						var elementsCopyForSorting: Array <IControlElement> = elements.slice();
-						const tabIndexFilteredElements: Array<IControlElement> = elementsCopyForSorting.sort((a: IControlElement, b: IControlElement) => {
-							const aOverB: boolean = a.positionVector.y > b.positionVector.y;
-							return a.positionVector.x == b.positionVector.x ? (aOverB ? 1 : -1) : a.positionVector.x < b.positionVector.x ? -1 : 1;
-						});
-
-						let tabIndex: number = 0;
-						for (let i = 0; i < tabIndexFilteredElements.length; i++) {
-							let element: IControlElement = <IControlElement>tabIndexFilteredElements[i];
-							if(element.visible){
-								//tabindex 1 are the UserInput element
-								element.tabIndex = 2 + (tabIndex++);
-							}else{
-								element.tabIndex = -1;
-							}
-						}
-						
-						// toggle nav button visiblity
-						cancelAnimationFrame(this.rAF);
-						if(isListWidthOverElementWidth){
-							this.el.classList.remove("hide-nav-buttons");
-						}else{
-							this.el.classList.add("hide-nav-buttons");
-						}
-
-						this.elementWidth = elOffsetWidth;
-
-						// resize scroll
-						this.listScrollController.resize(this.listWidth, this.elementWidth);
-
-						this.buildTabableRows();
-
-						this.el.classList.add("resized");
-					}, 0);
+					if(element.hasImage())
+						containsElementWithImage = true;
 				}
 
+				let elOffsetWidth: number = this.el.offsetWidth;
+				let isListWidthOverElementWidth: boolean = this.listWidth > elOffsetWidth;
+				if(isListWidthOverElementWidth && !containsElementWithImage){
+					this.el.classList.add("two-row");
+					this.listWidth = Math.max(elOffsetWidth, Math.round((listWidthValues[Math.floor(listWidthValues.length / 2)]) + 50));
+					this.list.style.width = this.listWidth + "px";
+				}else{
+					this.el.classList.add("one-row");
+				}
 
-				if(resolve)
+				// recalc after LIST classes has been added
+				for (let i = 0; i < elements.length; i++) {
+					let element: IControlElement = <IControlElement>elements[i];
+					if(element.visible){
+						element.calcPosition();
+					}
+				}
+
+				// check again after classes are set.
+				elOffsetWidth = this.el.offsetWidth;
+				isListWidthOverElementWidth = this.listWidth > elOffsetWidth;
+
+				// sort the list so we can set tabIndex properly
+				var elementsCopyForSorting: Array <IControlElement> = elements.slice();
+				const tabIndexFilteredElements: Array<IControlElement> = elementsCopyForSorting.sort((a: IControlElement, b: IControlElement) => {
+					const aOverB: boolean = a.positionVector.y > b.positionVector.y;
+					return a.positionVector.x == b.positionVector.x ? (aOverB ? 1 : -1) : a.positionVector.x < b.positionVector.x ? -1 : 1;
+				});
+
+				let tabIndex: number = 0;
+				for (let i = 0; i < tabIndexFilteredElements.length; i++) {
+					let element: IControlElement = <IControlElement>tabIndexFilteredElements[i];
+					if(element.visible){
+						//tabindex 1 are the UserTextInput element
+						element.tabIndex = 2 + (tabIndex++);
+					}else{
+						element.tabIndex = -1;
+					}
+				}
+				
+				// toggle nav button visiblity
+				if(isListWidthOverElementWidth){
+					this.el.classList.remove("hide-nav-buttons");
+				}else{
+					this.el.classList.add("hide-nav-buttons");
+				}
+
+				this.elementWidth = elOffsetWidth;
+
+				// resize scroll
+				this.listScrollController.resize(this.listWidth, this.elementWidth);
+
+				
+				this.el.classList.add("resized");
+				
+				this.eventTarget.dispatchEvent(new CustomEvent(ControlElementsEvents.ON_RESIZE));
+				
+				if(resolve){
+					// only build when there is something to resolve
+					this.buildTabableRows();
 					resolve();
-			}, 0);
+				}
+			}
 		}
 
 		public dealloc(){
 			this.currentControlElement = null;
 			this.tableableRows = null;
 
-			cancelAnimationFrame(this.rAF);
-			this.rAF = null;
+			window.removeEventListener('resize', this.onResizeCallback, false);
+			this.onResizeCallback = null;
 
 			this.el.removeEventListener('scroll', this.onScrollCallback, false);
 			this.onScrollCallback = null;
