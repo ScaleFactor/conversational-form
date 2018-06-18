@@ -276,6 +276,7 @@ namespace cf {
 			this.tags.push(tag);
 			this.maxSteps++;
 			this.showStep();
+            this.validateStepAndUpdate();
 		}
 
 		public dealloc(){
