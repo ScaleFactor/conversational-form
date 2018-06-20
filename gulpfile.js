@@ -48,11 +48,11 @@ global.gulp.task('watch', tasks, function() {
 // Default tasks
 global.gulp.task('default', ['watch']);
 global.gulp.task('build', gulpsync.sync(tasks));
-global.gulp.task('dist', gulpsync.sync(tasks));
+global.gulp.task('dist', gulpsync.sync(distTasks));
 
-// gulp.task('karma-tests', function (done) {
-// 	new Server({
-// 	  configFile: __dirname + '/karma.conf.js',
-// 	  singleRun: true
-// 	}, done).start();
-//   });
+gulp.task('karma-tests', function (done) {
+	new Server({
+	  configFile: __dirname + '/karma.conf.js',
+	  singleRun: true
+	}, done).start();
+  });
