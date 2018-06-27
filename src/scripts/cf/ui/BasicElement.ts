@@ -5,6 +5,9 @@ namespace cf {
 	// interface
 	export interface IBasicElementOptions{
 		eventTarget: EventDispatcher;
+		cfReference?: ConversationalForm,
+		// set a custom template
+		customTemplate?: string
 	}
 
 	export interface IBasicElement{
@@ -18,9 +21,16 @@ namespace cf {
 	export class BasicElement implements IBasicElement{
 		public el: HTMLElement;
 		protected eventTarget: EventDispatcher;
+		protected cfReference: ConversationalForm;
+		// optional value, but this can be used to overwrite the UI of Conversational Interface
+		protected customTemplate: string;
 
 		constructor(options: IBasicElementOptions){
 			this.eventTarget = options.eventTarget;
+			this.cfReference = options.cfReference;
+
+			if(options.customTemplate)
+				this.customTemplate = options.customTemplate;
 
 			// TODO: remove
 			if(!this.eventTarget)
@@ -28,13 +38,18 @@ namespace cf {
 
 			this.setData(options);
 			this.createElement();
+			this.onElementCreated();
 		}
 
 		protected setData(options: IBasicElementOptions){
 			
 		}
 
-		protected createElement(): Element{
+		protected onElementCreated(){
+			
+		}
+
+		private createElement(): Element{
 			var template: HTMLTemplateElement = document.createElement('template');
 			template.innerHTML = this.getTemplate();
 			this.el = <HTMLElement> template.firstChild || <HTMLElement>template.content.firstChild;
@@ -42,7 +57,7 @@ namespace cf {
 		}
 
 		// template, should be overwritten ...
-		public getTemplate () : string {return `should be overwritten...`};
+		public getTemplate () : string {return this.customTemplate || `should be overwritten...`};
 
 		public dealloc(){
 			this.el.parentNode.removeChild(this.el);

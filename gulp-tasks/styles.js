@@ -1,6 +1,3 @@
-var rupture = require('rupture');
-var nib = require('nib');
-var stylus = require('gulp-stylus');
 var flatten = require('gulp-flatten');
 var changed = require('gulp-changed');
 var gutil = require('gulp-util');
@@ -10,6 +7,9 @@ var concat = require('gulp-concat');
 var cleanCSS = require('gulp-clean-css');
 var rename = require('gulp-rename');
 
+const sass = require('gulp-sass');
+const autoprefixer = require('gulp-autoprefixer');
+
 function swallowError(error) {
 	// If you want details of the error in the console
 	gutil.log(error.toString());
@@ -17,48 +17,17 @@ function swallowError(error) {
 	this.emit('end');
 }
 
-global.gulp.task('stylus', function() {
+/**
+ * OBS: seperate build tasks out so we can split the project into smaller pieces later.
+ */
+
+/**
+ * form style tasks
+ */
+
+global.gulp.task('sass-form-build', ['sass-form'], function(){
 	var src = [
-		global.srcFolder + "/styles/**/*.styl",
-		"!" + global.srcFolder + "/styles/**/*-variables.styl"
-	]
-	var dst = global.buildFolder;
-
-	var stream = global.gulp.src(src)
-		// .pipe(flatten()) // flatten folder structure
-		.pipe(changed(dst, {
-			extension: '.css'
-		}))
-		.pipe(stylus({
-			use: [nib(), rupture()],
-			errors: true
-		}))
-		.on('error', swallowError)
-		.pipe(global.gulp.dest(dst))
-		.pipe(livereload())
-		.pipe(notify("Stylus compiled."));
-
-	return stream;
-});
-
-global.gulp.task('styles-build', ['stylus'], function(){
-	var src = [
-		global.buildFolder + "**/*.css",
-		global.buildFolder + "cf/cf.css",
-		global.buildFolder + "cf/ui/control-elements/cf-control-elements.css",
-		global.buildFolder + "cf/ui/control-elements/cf-button.css",
-		global.buildFolder + "cf/ui/control-elements/cf-radio-button.css",
-		global.buildFolder + "cf/ui/control-elements/cf-checkbox-button.css",
-		global.buildFolder + "cf/ui/control-elements/cf-options-list.css",
-		global.buildFolder + "cf/ui/control-elements/cf-upload-file-ui.css",
-		global.buildFolder + "cf/ui/cf-input.css",
-		global.buildFolder + "cf/ui/cf-info.css",
-		global.buildFolder + "cf/ui/cf-list-button.css",
-		global.buildFolder + "cf/ui/chat/cf-chat-response.css",
-		global.buildFolder + "cf/ui/chat/cf-chat.css",
-		
-		"!" + global.buildFolder + "conversational-form.css",
-		"!" + global.distFolder + "conversational-form.min.css",
+		global.buildFolder + "main.css"
 	]
 
 	var stream = global.gulp.src(src)
@@ -67,6 +36,33 @@ global.gulp.task('styles-build', ['stylus'], function(){
 		.pipe(cleanCSS())
 		.pipe(rename({suffix: '.min'}))
 		.pipe(global.gulp.dest(global.distFolder));
-	
+
 	return stream;
 });
+
+
+/**
+ * SCSS
+ */
+global.gulp.task('sass-form', function () {
+	var src = [
+		global.srcFolder + "/styles/conversational-form.scss"
+	]
+	var dst = global.buildFolder;
+
+	var stream = global.gulp.src(src)
+		.pipe(sass().on('error', sass.logError))
+		.pipe(autoprefixer({ browsers: ['> 1%']}))
+		.pipe(global.gulp.dest(dst))
+		.pipe(livereload())
+		.pipe(notify("CSS compiled."));
+
+	return stream;
+});
+
+
+
+
+
+
+

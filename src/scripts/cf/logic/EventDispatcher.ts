@@ -10,7 +10,12 @@ namespace cf {
 		public get cf(): ConversationalForm{
 			return this._cf;
 		}
-		constructor(cfRef: ConversationalForm) {
+
+		public set cf(value: ConversationalForm){
+			this._cf = value;
+		}
+
+		constructor(cfRef: ConversationalForm = null) {
 			this._cf = cfRef;
 
 			this.target = document.createDocumentFragment();
