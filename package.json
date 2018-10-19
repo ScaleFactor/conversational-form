@@ -1,6 +1,6 @@
 {
   "name": "conversational-form",
-  "version": "0.9.81",
+  "version": "1.0.4",
   "description": "Turning web forms into conversations",
   "main": "dist/conversational-form.js",
   "directories": {
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/space10-community/conversational-form"
+    "url": "https://github.com/ScaleFactor/conversational-form"
   },
   "author": {
     "name": "Felix Nielsen",
@@ -17,9 +17,9 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/space10-community/conversational-form/issues"
+    "url": "https://github.com/ScaleFactor/conversational-form/issues"
   },
-  "homepage": "https://github.com/space10-community/conversational-form",
+  "homepage": "https://github.com/ScaleFactor/conversational-form:",
   "ignore": [
     "build"
   ],

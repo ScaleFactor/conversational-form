@@ -880,7 +880,7 @@ var cf;
             var userInput = dto.dto.input;
             if (this.active) {
                 var isNavKey = [cf.Dictionary.keyCodes["left"], cf.Dictionary.keyCodes["right"], cf.Dictionary.keyCodes["down"], cf.Dictionary.keyCodes["up"]].indexOf(dto.keyCode) != -1;
-                var shouldFilter = dto.inputFieldActive && !isNavKey;
+                var shouldFilter = dto.inputFieldActive && !isNavKey && false;
                 if (shouldFilter) {
                     // input field is active, so we should filter..
                     var dto_1 = event.detail.dto;

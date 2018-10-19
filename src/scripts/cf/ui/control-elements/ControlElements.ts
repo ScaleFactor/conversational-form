@@ -209,7 +209,7 @@ namespace cf {
 
 			if(this.active){
 				const isNavKey: boolean = [Dictionary.keyCodes["left"], Dictionary.keyCodes["right"], Dictionary.keyCodes["down"], Dictionary.keyCodes["up"]].indexOf(dto.keyCode) != -1;
-				const shouldFilter: boolean = dto.inputFieldActive && !isNavKey;
+				const shouldFilter: boolean = dto.inputFieldActive && !isNavKey && false;
 
 				if(shouldFilter){
 					// input field is active, so we should filter..
