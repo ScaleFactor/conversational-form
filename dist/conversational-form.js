@@ -880,7 +880,7 @@ var cf;
             var userInput = dto.dto.input;
             if (this.active) {
                 var isNavKey = [cf.Dictionary.keyCodes["left"], cf.Dictionary.keyCodes["right"], cf.Dictionary.keyCodes["down"], cf.Dictionary.keyCodes["up"]].indexOf(dto.keyCode) != -1;
-                var shouldFilter = dto.inputFieldActive && !isNavKey && false;
+                var shouldFilter = dto.inputFieldActive && !isNavKey;
                 if (shouldFilter) {
                     // input field is active, so we should filter..
                     var dto_1 = event.detail.dto;
@@ -5068,9 +5068,6 @@ var cf;
             if (!this.flowDTOFromUserInputUpdate.text && dto.tag) {
                 if (dto.tag.type == "group") {
                     this.flowDTOFromUserInputUpdate.text = cf.Dictionary.get("user-reponse-missing-group");
-                }
-                else if (dto.tag.type != "password") {
-                    this.flowDTOFromUserInputUpdate.text = cf.Dictionary.get("user-reponse-missing");
                 }
             }
             this.currentUserResponse.setValue(this.flowDTOFromUserInputUpdate);

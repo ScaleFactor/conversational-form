@@ -241,8 +241,6 @@ namespace cf {
 			if(!this.flowDTOFromUserInputUpdate.text && dto.tag){
 				if(dto.tag.type == "group"){
 					this.flowDTOFromUserInputUpdate.text = Dictionary.get("user-reponse-missing-group");
-				}else if(dto.tag.type != "password"){
-					this.flowDTOFromUserInputUpdate.text = Dictionary.get("user-reponse-missing");
 				}
 			}
 
