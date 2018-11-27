@@ -32,7 +32,7 @@ global.gulp.task('typescript-form', function() {
 		}))
 		.pipe(typescript({
 			noImplicitAny: true,
-			target: "ES5",
+			target: "ES6",
 			module: "none"//AMD... etc.
 		}))
 		.on('error', swallowError)
@@ -133,7 +133,7 @@ global.gulp.task('typescript-docs', function() {
 		}))
 		.pipe(typescript({
 			noImplicitAny: true,
-			target: "ES5",
+			target: "ES6",
 			module: "none"//AMD... etc.
 		}))
 		.on('error', swallowError)
@@ -181,7 +181,7 @@ global.gulp.task('typescript-examples', function() {
 		}))
 		.pipe(typescript({
 			noImplicitAny: true,
-			target: "ES5",
+			target: "ES6",
 			module: "none"//AMD... etc.
 		}))
 		.on('error', swallowError)
