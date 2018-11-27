@@ -16,7 +16,6 @@
 interface Window { ConversationalForm: any; }
 
 namespace cf {
-
 	// CUI options
 	export interface ConversationalFormOptions{
 		// HTMLFormElement
