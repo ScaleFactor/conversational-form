@@ -528,7 +528,9 @@ namespace cf {
 				
 				if(parentDomNode){
 					// step backwards and check for label tag.
-					let labelTags: NodeListOf<Element> | Array<Element> = (<HTMLElement> parentDomNode).tagName.toLowerCase() == "label" ? [(<HTMLElement> parentDomNode)] : (<HTMLElement> parentDomNode).getElementsByTagName("label");
+					
+					let labelTagsElement = (<HTMLElement> parentDomNode).tagName.toLowerCase() == "label" ? [(<HTMLElement> parentDomNode)] : (<HTMLElement> parentDomNode).getElementsByTagName("label");
+					let labelTags: NodeListOf<Element> | Array<Element> = Array.prototype.slice.call(labelTagsElement);;
 
 					if(labelTags.length == 0){
 						// check for innerText

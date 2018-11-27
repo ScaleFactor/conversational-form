@@ -131,11 +131,13 @@ namespace cf {
 			this.userInputUpdateCallback = this.onUserInputUpdate.bind(this);
 			this.eventTarget.addEventListener(FlowEvents.USER_INPUT_UPDATE, this.userInputUpdateCallback, false);
 
+			let listNavButtonsElements = this.el.getElementsByTagName("cf-list-button");
+
 			this.listScrollController = new ScrollController({
 				interactionListener: this.el,
 				listToScroll: this.list,
 				eventTarget: this.eventTarget,
-				listNavButtons: this.el.getElementsByTagName("cf-list-button"),
+				listNavButtons: Array.prototype.slice.call(listNavButtonsElements)
 			});
 		}
 

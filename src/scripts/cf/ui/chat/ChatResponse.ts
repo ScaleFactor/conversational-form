@@ -222,7 +222,9 @@ namespace cf {
 							this.tryClearThinking();
 
 							this.textEl.innerHTML += "<p>" + str + "</p>";
-							const p: NodeListOf<HTMLElement> = this.textEl.getElementsByTagName("p");
+							const pElements = this.textEl.getElementsByTagName("p");
+							const p: NodeListOf<HTMLElement> = Array.prototype.slice.call(pElements);
+
 							p[p.length - 1].offsetWidth;
 							p[p.length - 1].classList.add("show");
 
@@ -250,7 +252,9 @@ namespace cf {
 					this.tryClearThinking();
 
 					this.textEl.innerHTML = "<p>" + innerResponse + "</p>";
-					const p: NodeListOf<HTMLElement> = this.textEl.getElementsByTagName("p");
+					const pElements = this.textEl.getElementsByTagName("p");
+					const p: NodeListOf<HTMLElement> = Array.prototype.slice.call(pElements);
+						
 					p[p.length - 1].offsetWidth;
 					p[p.length - 1].classList.add("show");
 

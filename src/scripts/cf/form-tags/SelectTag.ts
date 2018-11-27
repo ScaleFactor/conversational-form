@@ -31,7 +31,10 @@ namespace cf {
 
 			// build the option tags
 			this.optionTags = [];
-			var domOptionTags: NodeListOf<HTMLOptionElement> = this.domElement.getElementsByTagName("option");
+
+			var domOptionTagElements = this.domElement.getElementsByTagName("option");
+			var domOptionTags: NodeListOf<HTMLOptionElement> = Array.prototype.slice.call(domOptionTagElements);
+
 			for (let i = 0; i < domOptionTags.length; i++) {
 				let element: HTMLOptionElement = <HTMLOptionElement>domOptionTags[i];
 				let tag: OptionTag = <OptionTag> cf.Tag.createTag(element);
