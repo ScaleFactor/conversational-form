@@ -1,6 +1,6 @@
 {
   "name": "@scalefactor/conversational-form",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Turning web forms into conversations",
   "main": "dist/conversational-form.js",
   "directories": {
