@@ -156,7 +156,7 @@ namespace cf {
 			// set a general step validation callback
 			if(options.flowStepCallback)
 				this.flowStepCallback = options.flowStepCallback;
-			
+
 			this.isDevelopment = ConversationalForm.illustrateAppFlow = !!document.getElementById("conversational-form-development");
 
 			if(this.isDevelopment || options.loadExternalStyleSheet == false){
@@ -165,7 +165,7 @@ namespace cf {
 
 			if(!isNaN(options.scrollAccerlation))
 				ScrollController.accerlation = options.scrollAccerlation;
-			
+
 			this.preventAutoStart = options.preventAutoStart;
 			this.preventAutoAppend = options.preventAutoAppend;
 
@@ -329,7 +329,7 @@ namespace cf {
 			this.flowManager.stop();
 			if(optionalStoppingMessage != "")
 				this.chatList.createResponse(true, null, optionalStoppingMessage);
-			
+
 			this.userInput.onFlowStopped();
 		}
 
@@ -411,7 +411,7 @@ namespace cf {
 			});
 
 			this.el = document.createElement("div");
-			this.el.id = "conversational-form";
+      this.el.id = `conversational-form-${Math.floor(Math.random() * 10000)}`;
 			this.el.className = "conversational-form";
 
 			if(ConversationalForm.animationsEnabled)
@@ -420,7 +420,7 @@ namespace cf {
 			// add conversational form to context
 			if(!this.preventAutoAppend)
 				this.context.appendChild(this.el);
-			
+
 			//hide until stylesheet is rendered
 			this.el.style.visibility = "hidden";
 
@@ -450,7 +450,7 @@ namespace cf {
 			this.eventTarget.addEventListener(ChatResponseEvents.USER_ANSWER_CLICKED, this.onUserAnswerClickedCallback, false);
 
 			this.el.classList.add("conversational-form--show")
-			
+
 			if(!this.preventAutoStart)
 				this.flowManager.start();
 
