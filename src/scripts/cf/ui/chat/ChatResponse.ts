@@ -29,7 +29,7 @@ namespace cf {
 		public response: string;
 		public originalResponse: string; // keep track of original response with id pipings
 		public parsedResponse: string;
-		
+
 		private uiOptions: IUserInterfaceOptions;
 		private textEl: Element;
 		private image: string;
@@ -46,7 +46,7 @@ namespace cf {
 		}
 
 		public get added() : boolean {
-			return !!this.el.parentNode.parentNode;
+			return (!!this.el.parentNode && !!this.el.parentNode.parentNode);
 		}
 
 		public get disabled() : boolean {
@@ -96,7 +96,7 @@ namespace cf {
 			}else{
 				// same same
 				this.response = this.originalResponse = dto.text;
-				
+
 				this.processResponseAndSetText();
 
 				if(this.responseLink && !this.isRobotResponse){
@@ -155,7 +155,7 @@ namespace cf {
 				return;
 
 			var innerResponse: string = this.originalResponse;
-			
+
 			if(this._tag && this._tag.type == "password" && !this.isRobotResponse){
 				var newStr: string = "";
 				for (let i = 0; i < innerResponse.length; i++) {
@@ -167,7 +167,7 @@ namespace cf {
 
 			if(this.responseLink && this.isRobotResponse){
 				// if robot, then check linked response for binding values
-				
+
 				// one way data binding values:
 				innerResponse = innerResponse.split("{previous-answer}").join(this.responseLink.parsedResponse);
 
@@ -254,7 +254,7 @@ namespace cf {
 					this.textEl.innerHTML = "<p>" + innerResponse + "</p>";
 					const pElements = this.textEl.getElementsByTagName("p");
 					const p: NodeListOf<HTMLElement> = Array.prototype.slice.call(pElements);
-						
+
 					p[p.length - 1].offsetWidth;
 					p[p.length - 1].classList.add("show");
 
@@ -280,7 +280,7 @@ namespace cf {
 			// remove the double ampersands if present
 			this.response = innerResponse.split("&&").join(" ");
 		}
-		
+
 		public scrollTo(){
 			const y: number = this.el.offsetTop;
 			const h: number = this.el.offsetHeight;
@@ -344,7 +344,7 @@ namespace cf {
 			this.image = options.image;
 			this.response = this.originalResponse = options.response;
 			this.isRobotResponse = options.isRobotResponse;
-			
+
 			super.setData(options);
 		}
 		protected onElementCreated(){
